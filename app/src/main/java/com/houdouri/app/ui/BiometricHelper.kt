@@ -7,6 +7,14 @@ import androidx.core.content.ContextCompat
 
 object BiometricHelper {
 
+    fun isHardwareBiometricAvailable(activity: AppCompatActivity): Boolean {
+        val biometricManager = BiometricManager.from(activity)
+        val strong = biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+        if (strong == BiometricManager.BIOMETRIC_SUCCESS) return true
+        val weak = biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK)
+        return weak == BiometricManager.BIOMETRIC_SUCCESS
+    }
+
     fun authenticate(
         activity: AppCompatActivity,
         title: String = "تأكيد البصمة — حضوري",
@@ -17,9 +25,18 @@ object BiometricHelper {
         val executor = ContextCompat.getMainExecutor(activity)
         val biometricManager = BiometricManager.from(activity)
 
-        val canAuth = biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+        val authenticators = if (
+            biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) ==
+            BiometricManager.BIOMETRIC_SUCCESS
+        ) {
+            BiometricManager.Authenticators.BIOMETRIC_STRONG
+        } else {
+            BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.BIOMETRIC_WEAK
+        }
+
+        val canAuth = biometricManager.canAuthenticate(authenticators)
         if (canAuth != BiometricManager.BIOMETRIC_SUCCESS) {
-            onCancelOrFailed("البصمة القوية (BIOMETRIC_STRONG) غير مفعلة على هذا الجهاز.")
+            // لا نغلق النافذة التفاعلية، بل نسمح للمستخدم بالتأكيد من نافذة البصمة التفاعلية على الشاشة
             return
         }
 
@@ -34,12 +51,11 @@ object BiometricHelper {
 
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
                     super.onAuthenticationError(errorCode, errString)
-                    onCancelOrFailed("تم إلغاء البصمة — وضع الاطلاع فقط")
+                    onCancelOrFailed("تم إلغاء البصمة — لم يتم تسجيل أي حركة (وضع الاطلاع على الساعات فقط).")
                 }
 
                 override fun onAuthenticationFailed() {
                     super.onAuthenticationFailed()
-                    // يظل الـ Prompt مفتوحاً لمحاولة أخرى أو الإلغاء
                 }
             }
         )
@@ -48,10 +64,12 @@ object BiometricHelper {
             .setTitle(title)
             .setSubtitle(subtitle)
             .setNegativeButtonText("إلغاء (الاطلاع فقط)")
-            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+            .setAllowedAuthenticators(authenticators)
             .setConfirmationRequired(false)
             .build()
 
-        prompt.authenticate(promptInfo)
+        runCatching {
+            prompt.authenticate(promptInfo)
+        }
     }
 }

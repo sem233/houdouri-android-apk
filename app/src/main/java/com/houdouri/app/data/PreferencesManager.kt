@@ -29,6 +29,12 @@ class PreferencesManager(context: Context) {
         )
     }
 
+    fun isInitialSeedDone(): Boolean = prefs.getBoolean("initial_seed_done", false)
+
+    fun markInitialSeedDone() {
+        prefs.edit().putBoolean("initial_seed_done", true).apply()
+    }
+
     fun setWeekStartDay(dayOfWeek: DayOfWeek) {
         prefs.edit().putInt("week_start_day", dayOfWeek.value).apply()
     }
@@ -41,7 +47,11 @@ class PreferencesManager(context: Context) {
         prefs.edit().putBoolean("dark_mode", enabled).apply()
     }
 
-    fun setLastPunchEpochMs(epochMs: Long) {
-        prefs.edit().putLong("last_punch_ms", epochMs).apply()
+    fun setLastPunchEpochMs(epochMs: Long?) {
+        if (epochMs == null) {
+            prefs.edit().remove("last_punch_ms").apply()
+        } else {
+            prefs.edit().putLong("last_punch_ms", epochMs).apply()
+        }
     }
 }

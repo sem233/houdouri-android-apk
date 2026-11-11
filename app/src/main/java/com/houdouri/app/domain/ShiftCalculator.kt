@@ -4,8 +4,10 @@ import com.houdouri.app.data.ShiftEntity
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.YearMonth
 import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 import java.util.Locale
@@ -24,6 +26,7 @@ data class SummaryTotals(
 
 data class DayShiftGroup(
     val date: LocalDate,
+    val arabicDateLabel: String,
     val totalMinutes: Long,
     val shifts: List<ShiftEntity>
 )
@@ -33,6 +36,18 @@ object ShiftCalculator {
     val DEFAULT_ZONE: ZoneId = ZoneId.of("Africa/Cairo")
     private val ARABIC_LOCALE = Locale("ar", "EG")
     private val TIME_FORMATTER = DateTimeFormatter.ofPattern("hh:mm a", ARABIC_LOCALE)
+    private val FULL_DATE_FORMATTER = DateTimeFormatter.ofPattern("EEEE، d MMMM yyyy", ARABIC_LOCALE)
+    private val HH_MM_FORMATTER = DateTimeFormatter.ofPattern("HH:mm", Locale.US)
+
+    fun dayOfWeekArabicName(day: DayOfWeek): String = when (day) {
+        DayOfWeek.SATURDAY -> "السبت"
+        DayOfWeek.SUNDAY -> "الأحد"
+        DayOfWeek.MONDAY -> "الإثنين"
+        DayOfWeek.TUESDAY -> "الثلاثاء"
+        DayOfWeek.WEDNESDAY -> "الأربعاء"
+        DayOfWeek.THURSDAY -> "الخميس"
+        DayOfWeek.FRIDAY -> "الجمعة"
+    }
 
     /**
      * يحسب مدة الشيفت بالدقيقة بدون تقريب مبالغ فيه.
@@ -85,12 +100,29 @@ object ShiftCalculator {
             .replace("PM", "م")
     }
 
+    fun formatTime24h(epochMillis: Long, timezoneId: String = "Africa/Cairo"): String {
+        val zone = runCatching { ZoneId.of(timezoneId) }.getOrDefault(DEFAULT_ZONE)
+        return Instant.ofEpochMilli(epochMillis).atZone(zone).format(HH_MM_FORMATTER)
+    }
+
+    fun formatDateArabic(date: LocalDate): String {
+        return runCatching { date.format(FULL_DATE_FORMATTER) }.getOrDefault(date.toString())
+    }
+
     /**
      * الشيفت الذي يعبر منتصف الليل يُحسب بالكامل على يوم بدايته.
      */
     fun getShiftStartDate(shift: ShiftEntity): LocalDate {
         val zone = runCatching { ZoneId.of(shift.timezoneId) }.getOrDefault(DEFAULT_ZONE)
         return Instant.ofEpochMilli(shift.startTime).atZone(zone).toLocalDate()
+    }
+
+    fun isCrossMidnight(shift: ShiftEntity): Boolean {
+        val end = shift.endTime ?: return false
+        val zone = runCatching { ZoneId.of(shift.timezoneId) }.getOrDefault(DEFAULT_ZONE)
+        val startDate = Instant.ofEpochMilli(shift.startTime).atZone(zone).toLocalDate()
+        val endDate = Instant.ofEpochMilli(end).atZone(zone).toLocalDate()
+        return endDate.isAfter(startDate)
     }
 
     /**
@@ -214,8 +246,29 @@ object ShiftCalculator {
             .map { (date, dayShifts) ->
                 val sorted = dayShifts.sortedByDescending { it.startTime }
                 val total = sorted.sumOf { calculateShiftMinutes(it) }
-                DayShiftGroup(date = date, totalMinutes = total, shifts = sorted)
+                DayShiftGroup(
+                    date = date,
+                    arabicDateLabel = formatDateArabic(date),
+                    totalMinutes = total,
+                    shifts = sorted
+                )
             }
             .sortedByDescending { it.date }
+    }
+
+    fun buildEpochMillis(
+        dateStr: String,
+        timeStr: String,
+        addDays: Long = 0L,
+        timezoneId: String = "Africa/Cairo"
+    ): Long? {
+        return runCatching {
+            val zone = runCatching { ZoneId.of(timezoneId) }.getOrDefault(DEFAULT_ZONE)
+            val date = LocalDate.parse(dateStr.trim()).plusDays(addDays)
+            val parts = timeStr.trim().split(":")
+            val hour = parts.getOrNull(0)?.toIntOrNull()?.coerceIn(0, 23) ?: 8
+            val minute = parts.getOrNull(1)?.toIntOrNull()?.coerceIn(0, 59) ?: 0
+            ZonedDateTime.of(date, LocalTime.of(hour, minute), zone).toInstant().toEpochMilli()
+        }.getOrNull()
     }
 }
