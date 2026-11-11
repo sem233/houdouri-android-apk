@@ -10,9 +10,9 @@ object BackupManager {
         val sb = StringBuilder()
         sb.appendLine("id,startTime,endTime,timezoneId,note")
         for (s in shifts) {
-            val escapedNote = (s.note ?: "").replace(""", """")
+            val escapedNote = (s.note ?: "").replace("\"", "\"\"")
             val endStr = s.endTime?.toString() ?: ""
-            sb.appendLine("${s.id},${s.startTime},$endStr,${s.timezoneId},"$escapedNote"")
+            sb.appendLine("${s.id},${s.startTime},$endStr,${s.timezoneId},\"$escapedNote\"")
         }
         return sb.toString()
     }
@@ -30,8 +30,8 @@ object BackupManager {
             val end = match.groupValues[3].toLongOrNull()
             val tz = match.groupValues[4].ifBlank { "Africa/Cairo" }
             var note = match.groupValues[5].trim()
-            if (note.startsWith(""") && note.endsWith(""") && note.length >= 2) {
-                note = note.substring(1, note.length - 1).replace("""", """)
+            if (note.startsWith("\"") && note.endsWith("\"") && note.length >= 2) {
+                note = note.substring(1, note.length - 1).replace("\"\"", "\"")
             }
             result.add(
                 ShiftEntity(

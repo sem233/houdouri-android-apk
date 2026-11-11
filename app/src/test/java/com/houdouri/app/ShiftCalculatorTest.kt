@@ -19,7 +19,7 @@ class ShiftCalculatorTest {
     }
 
     @Test
-    fun `calculates single shift duration in minutes and formats as 8h 28m`() {
+    fun calculatesSingleShiftDurationInMinutesAndFormatsAs8h28m() {
         val shift = ShiftEntity(
             id = 1L,
             startTime = cairoMillis(2026, 11, 10, 8, 2),
@@ -33,7 +33,7 @@ class ShiftCalculatorTest {
     }
 
     @Test
-    fun `sums multiple shifts in the same day`() {
+    fun sumsMultipleShiftsInTheSameDay() {
         val shifts = listOf(
             ShiftEntity(
                 id = 1L,
@@ -55,7 +55,7 @@ class ShiftCalculatorTest {
     }
 
     @Test
-    fun `cross-midnight shift is attributed entirely to its start day`() {
+    fun crossMidnightShiftIsAttributedEntirelyToItsStartDay() {
         // يبدأ يوم 10 نوفمبر الساعة 10:00 مساءً وينتهي يوم 11 نوفمبر الساعة 02:30 صباحاً (270 دقيقة)
         val nightShift = ShiftEntity(
             id = 5L,
@@ -83,7 +83,7 @@ class ShiftCalculatorTest {
     }
 
     @Test
-    fun `calculates weekly range with Saturday default and custom start day`() {
+    fun calculatesWeeklyRangeWithSaturdayDefaultAndCustomStartDay() {
         val tuesday = LocalDate.of(2026, 11, 10)
         val (satStart, satEnd) = ShiftCalculator.getWeekRange(tuesday, DayOfWeek.SATURDAY)
         assertEquals(LocalDate.of(2026, 11, 7), satStart)
@@ -91,7 +91,7 @@ class ShiftCalculatorTest {
     }
 
     @Test
-    fun `calculates custom monthly cycle from 26th to 25th`() {
+    fun calculatesCustomMonthlyCycleFrom26thTo25th() {
         val nov10 = LocalDate.of(2026, 11, 10)
         val (start1, end1) = ShiftCalculator.getMonthRange(nov10, monthStartDay = 26)
         assertEquals(LocalDate.of(2026, 10, 26), start1)
@@ -104,7 +104,7 @@ class ShiftCalculatorTest {
     }
 
     @Test
-    fun `detects open shift over 16 hours and enforces 30s double punch cooldown`() {
+    fun detectsOpenShiftOver16HoursAndEnforces30sDoublePunchCooldown() {
         val start = cairoMillis(2026, 11, 10, 6, 0)
         val openShift = ShiftEntity(id = 9L, startTime = start, endTime = null)
 
